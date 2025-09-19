@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../lawyer-backend"
+		},
+		{
+			"path": "../../REACTJS/gestion_des_fichier"
+		}
+	],
+	"settings": {}
+}
