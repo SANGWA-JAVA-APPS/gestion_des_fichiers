@@ -8,10 +8,11 @@ import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "files")
+@Table(name = "files_deprecated")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Deprecated
 public class FileEntity {
     
     @Id
@@ -21,16 +22,16 @@ public class FileEntity {
     @Column(nullable = false)
     private String fileName;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "original_file_name")
     private String originalFileName;
     
-    @Column
+    @Column(name = "content_type")
     private String contentType;
     
-    @Column
+    @Column(name = "file_size")
     private Long fileSize;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "file_path")
     private String filePath;
     
     @ManyToOne(fetch = FetchType.LAZY)

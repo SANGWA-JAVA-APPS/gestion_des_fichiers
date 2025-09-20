@@ -1,49 +1,62 @@
 package com.bar.gestiondesfichier.controller;
 
+import com.bar.gestiondesfichier.common.util.ResponseUtil;
 import com.bar.gestiondesfichier.entity.AccountCategory;
 import com.bar.gestiondesfichier.repository.AccountCategoryRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/account-categories")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8081"})
-@Tag(name = "Account Category Management", description = "Account Category CRUD operations")
+@Tag(name = "Account Category Management", description = "Account Category CRUD operations with pagination")
 public class AccountCategoryController {
 
+    private static final Logger log = LoggerFactory.getLogger(AccountCategoryController.class);
     private final AccountCategoryRepository accountCategoryRepository;
 
-    // Explicit constructor for dependency injection
     public AccountCategoryController(AccountCategoryRepository accountCategoryRepository) {
         this.accountCategoryRepository = accountCategoryRepository;
     }
 
     @GetMapping
-    @Operation(summary = "Get all account categories", description = "Retrieve all account categories")
+    @Operation(summary = "Get all account categories", description = "Retrieve paginated list of account categories with default 20 records per page")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Account categories retrieved successfully"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+        @ApiResponse(responseCode = "403", description = "Session expired")
     })
-    public ResponseEntity<List<AccountCategoryDTO>> getAllAccountCategories() {
+    public ResponseEntity<Map<String, Object>> getAllAccountCategories(
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") Integer page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") Integer size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "name") String sort,
+            @Parameter(description = "Sort direction") @RequestParam(defaultValue = "asc") String direction) {
         try {
-            List<AccountCategory> categories = accountCategoryRepository.findAll();
-            List<AccountCategoryDTO> categoryDTOs = categories.stream()
-                .map(this::convertToDTO)
-                .toList();
-            return ResponseEntity.ok(categoryDTOs);
+            log.info("Retrieving account categories - page: {}, size: {}, sort: {} {}", page, size, sort, direction);
+            
+            Pageable pageable = ResponseUtil.createPageable(page, size, sort, direction);
+            Page<AccountCategory> categories = accountCategoryRepository.findAll(pageable);
+            
+            return ResponseUtil.successWithPagination(categories);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid parameters for account category retrieval: {}", e.getMessage());
+            return ResponseUtil.badRequest(e.getMessage());
         } catch (Exception e) {
             log.error("Error retrieving account categories", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseUtil.badRequest("Failed to retrieve account categories: " + e.getMessage());
         }
     }
 
@@ -51,17 +64,25 @@ public class AccountCategoryController {
     @Operation(summary = "Get account category by ID", description = "Retrieve a specific account category by ID")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Account category retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Account category not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Account category not found or invalid ID")
     })
-    public ResponseEntity<AccountCategoryDTO> getAccountCategoryById(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getAccountCategoryById(@PathVariable Long id) {
         try {
+            if (id == null || id <= 0) {
+                return ResponseUtil.badRequest("Invalid account category ID");
+            }
+            
+            log.info("Retrieving account category by ID: {}", id);
             Optional<AccountCategory> category = accountCategoryRepository.findById(id);
-            return category.map(c -> ResponseEntity.ok(convertToDTO(c)))
-                          .orElse(ResponseEntity.notFound().build());
+            
+            if (category.isPresent()) {
+                return ResponseUtil.success(category.get(), "Account category retrieved successfully");
+            } else {
+                return ResponseUtil.badRequest("Account category not found with ID: " + id);
+            }
         } catch (Exception e) {
-            log.error("Error retrieving account category with id: " + id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Error retrieving account category with ID: {}", id, e);
+            return ResponseUtil.badRequest("Failed to retrieve account category: " + e.getMessage());
         }
     }
 

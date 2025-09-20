@@ -4,6 +4,8 @@ import com.bar.gestiondesfichier.common.repository.BaseRepository;
 import com.bar.gestiondesfichier.location.model.LocationEntity;
 import com.bar.gestiondesfichier.location.model.LocationEntity.EntityType;
 import com.bar.gestiondesfichier.location.projection.LocationEntityProjection;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -14,6 +16,16 @@ import java.util.Optional;
 @Repository
 public interface LocationEntityRepository extends BaseRepository<LocationEntity> {
     
+    // Paginated methods
+    Page<LocationEntity> findByActiveTrue(Pageable pageable);
+    
+    Page<LocationEntity> findByCountryIdAndActiveTrue(Long countryId, Pageable pageable);
+    
+    Page<LocationEntity> findByEntityTypeAndActiveTrue(EntityType entityType, Pageable pageable);
+    
+    Page<LocationEntity> findByCountryIdAndEntityTypeAndActiveTrue(Long countryId, EntityType entityType, Pageable pageable);
+    
+    // Non-paginated methods (legacy support)
     List<LocationEntity> findByCountryIdAndActiveTrue(Long countryId);
     
     List<LocationEntity> findByEntityTypeAndActiveTrue(EntityType entityType);

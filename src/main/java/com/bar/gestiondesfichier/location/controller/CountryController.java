@@ -65,7 +65,7 @@ public class CountryController {
             if (id == null || id <= 0) {
                 return ResponseUtil.badRequest("Invalid country ID");
             }
-            
+
             Optional<Country> country = countryService.findByIdAndActive(id);
             if (country.isPresent()) {
                 return ResponseUtil.success(country.get());
@@ -88,7 +88,6 @@ public class CountryController {
     public ResponseEntity<Map<String, Object>> createCountry(@RequestBody Country countryRequest) {
         try {
             log.info("Creating country: {}", countryRequest.getName());
-            
             Country country = countryService.createCountry(
                     countryRequest.getName(),
                     countryRequest.getDescription(),
@@ -96,7 +95,7 @@ public class CountryController {
                     countryRequest.getPhoneCode(),
                     countryRequest.getFlagUrl()
             );
-            
+
             return ResponseUtil.success(country, "Country created successfully");
         } catch (IllegalArgumentException e) {
             log.warn("Invalid country data: {}", e.getMessage());
@@ -119,7 +118,7 @@ public class CountryController {
             if (id == null || id <= 0) {
                 return ResponseUtil.badRequest("Invalid country ID");
             }
-            
+
             Country country = countryService.updateCountry(
                     id,
                     countryRequest.getName(),
@@ -128,7 +127,7 @@ public class CountryController {
                     countryRequest.getPhoneCode(),
                     countryRequest.getFlagUrl()
             );
-            
+
             return ResponseUtil.success(country, "Country updated successfully");
         } catch (IllegalArgumentException e) {
             log.warn("Invalid country data for update: {}", e.getMessage());
@@ -151,7 +150,7 @@ public class CountryController {
             if (id == null || id <= 0) {
                 return ResponseUtil.badRequest("Invalid country ID");
             }
-            
+
             countryService.softDeleteById(id);
             return ResponseUtil.success(null, "Country deleted successfully");
         } catch (IllegalArgumentException e) {

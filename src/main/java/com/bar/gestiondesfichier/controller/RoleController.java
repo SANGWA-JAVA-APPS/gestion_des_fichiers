@@ -1,72 +1,88 @@
 package com.bar.gestiondesfichier.controller;
 
+import com.bar.gestiondesfichier.common.util.ResponseUtil;
 import com.bar.gestiondesfichier.entity.AccountCategory;
 import com.bar.gestiondesfichier.repository.AccountCategoryRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/roles")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8081"})
-@Tag(name = "Role Management", description = "Role CRUD operations (mapped to Account Categories)")
+@Tag(name = "Role Management", description = "Role CRUD operations with pagination (mapped to Account Categories)")
 public class RoleController {
 
     private static final Logger log = LoggerFactory.getLogger(RoleController.class);
     private final AccountCategoryRepository accountCategoryRepository;
 
-    // Explicit constructor for dependency injection
     public RoleController(AccountCategoryRepository accountCategoryRepository) {
         this.accountCategoryRepository = accountCategoryRepository;
     }
 
     @GetMapping
-    @Operation(summary = "Get all roles", description = "Retrieve all roles (account categories)")
+    @Operation(summary = "Get all roles", description = "Retrieve paginated list of roles (account categories) with default 20 records per page")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Roles retrieved successfully"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+        @ApiResponse(responseCode = "403", description = "Session expired")
     })
-    public ResponseEntity<List<RoleDTO>> getAllRoles() {
+    public ResponseEntity<Map<String, Object>> getAllRoles(
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") Integer page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") Integer size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "name") String sort,
+            @Parameter(description = "Sort direction") @RequestParam(defaultValue = "asc") String direction) {
         try {
-            List<AccountCategory> categories = accountCategoryRepository.findAll();
-            List<RoleDTO> roles = categories.stream()
-                    .map(this::convertToRoleDTO)
-                    .toList();
-            return ResponseEntity.ok(roles);
+            log.info("Retrieving roles - page: {}, size: {}, sort: {} {}", page, size, sort, direction);
+            
+            Pageable pageable = ResponseUtil.createPageable(page, size, sort, direction);
+            Page<AccountCategory> categories = accountCategoryRepository.findAll(pageable);
+            
+            return ResponseUtil.successWithPagination(categories);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid parameters for role retrieval: {}", e.getMessage());
+            return ResponseUtil.badRequest(e.getMessage());
         } catch (Exception e) {
             log.error("Error retrieving roles", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseUtil.badRequest("Failed to retrieve roles: " + e.getMessage());
         }
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get role by ID", description = "Retrieve a specific role (account category) by ID")
+        @GetMapping("/{id}")
+    @Operation(summary = "Get role by ID", description = "Retrieve a specific role by ID")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Role retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Role not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Role not found or invalid ID")
     })
-    public ResponseEntity<RoleDTO> getRoleById(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getRoleById(@PathVariable Long id) {
         try {
-            Optional<AccountCategory> categoryOpt = accountCategoryRepository.findById(id);
-            if (categoryOpt.isPresent()) {
-                RoleDTO role = convertToRoleDTO(categoryOpt.get());
-                return ResponseEntity.ok(role);
+            if (id == null || id <= 0) {
+                return ResponseUtil.badRequest("Invalid role ID");
+            }
+            
+            log.info("Retrieving role by ID: {}", id);
+            Optional<AccountCategory> category = accountCategoryRepository.findById(id);
+            
+            if (category.isPresent()) {
+                return ResponseUtil.success(category.get(), "Role retrieved successfully");
             } else {
-                return ResponseEntity.notFound().build();
+                return ResponseUtil.badRequest("Role not found with ID: " + id);
             }
         } catch (Exception e) {
-            log.error("Error retrieving role with id: " + id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Error retrieving role with ID: {}", id, e);
+            return ResponseUtil.badRequest("Failed to retrieve role: " + e.getMessage());
         }
     }
 

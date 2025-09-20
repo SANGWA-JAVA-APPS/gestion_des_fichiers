@@ -222,25 +222,47 @@ In frontend i would like to:
 
 
 
-In the database definition, i would like to add these models, where each model will have these fields in addition:
-		 expiration_date(date_time) initialized the current date time from the model using @prepersist,doc_version,status (string 50), documentId(long).
-	Therefore, the models will reflect the underying databse tables:
-	= status(id, name),  the defaults are: applicable, suspended, remplaced, annulé, en_cours, acquis, vendu, transféré, litigieux, validé
-	=> norme_loi(référence, description,date de vigueur, domaine_application,statut_id )
-	=> comm_asset_land(id,description, référence, date d’obtention, Coordonnées GPS, Emplacement, statut_id, section_id)
-	=> permi_construction(id,référence_titre_foncier,réfé_permis_construire,date_validation,date_estimée_travaux,statut_id)
-	=> accord_concession(id, contrat_concession, emplacement, coordonnees_gps, rapport_transfert_gestion, date_debut_concession, date_fin_concession,statut_id)
-	=> estate(id, estate_type, reference, emplacement, coordonnees_gps, statut_(owner,_rental,_sold,_free), date_of_building, comments, statut_id)
-	=> 
+In the database definition, i would like to add these models where:
+	
+	each controller will have pagination with default of 20 records.
+	use the projection interfaces instead of dtos
+	Make a centralized @CrossOrigin, 
+	Use a single package called "document" where it will hold models, repositories, controllers and services
+	Use a common functionlity to be included in the existing common package found in com.bar.gestiondesfichier.common
+	follow the logging of @slfj
+	Therefore,check the tables names that may conflict with mysql keywords create these models which will reflect the underying databse tables:
+	=> docstatus             	(id, name),  the defaults are: applicable, suspended, remplaced, annulé, en_cours, acquis, vendu, transféré, litigieux, validé
+	=> section_category   		(id, name), the default values are: financial,procument, hr, technical, IT, real Estate, Shareholders, legal, quality, HSE,	
+		equipment, drug and alcohol, incident news letter, SOP
+	=> norme_loi  			(id, date_time, doneby, docId, référence, description, date_vigueur, domaine_application, 												statut_id)
+	=> comm_asset_land  		(id, date_time, doneby, docId, description, référence, date_btention, coordonnées GPS, emplacement, section_id, 									statut_id)
+	=> permi_construction	  	(id, date_time, doneby, docId, référence_titre_foncier, réfé_permis_construire, date_validation, date_estimée_travaux, 									statut_id)
+	=> accord_concession  		(id, date_time, doneby, docId, contrat_concession, emplacement, coordonnees_gps, rapport_transfert_gestion, date_debut_concession, date_fin_concession, 				statut_id)
+	=> estate  			(id, date_time, doneby, docId, reference, estate_type,  emplacement, coordonnees_gps, date_of_building, comments, 									statut_id)
+	=> equipemt_id  		(id, date_time, doneby, docId, equipment_type, serial_number, plate_number, etat_equipement, date_achat, date_visite_technique, assurance, documents_telecharger, 			statut_id)
+	=> cert_licenses  		(id, date_time, doneby, docId, description, agent_certifica, numero_agent, date_certificate, duree_certificat, 										statut_id)
+	=> comm_comp_policies 	 	(id, date_time, doneby, docId, reference, description, status, version, expiratino_date, sectionid, 											statut_id)
+	=> comm_followup_audit  	(id, date_time, doneby, docId, reference, description, date_audit, auditor, num_non_conform, type_conform, percent_complete, doc_attach, section_id, 					statut_id)
+	=> due_diligence  		(id, date_time, doneby, docId, reference, description, date_due_diligence, auditor, creation_date, completion_date, doc_attach, section_id, 						statut_id)
+	=> comm_third_party  		(id, date_time, doneby, docId, name, location, validity, activities, section_id, 													statut_id)
+	=> cargo_damage  		(id, date_time, doneby, docId, refe_request, description, quotation_contract_num, date_request, date_contract,		 								statut_id)
+	=> litigation_followup  	(id, date_time, doneby, docId, creation_date, concern, statut, expected_completion, risk_value, 											statut_id)
+	=> insurance  			(id, date_time, doneby, docId, concerns, coverage, values, date_validity, renewal_date, 												statut_id)
+	=> third_party_claims 	 	(id, date_time, doneby, docId, reference, description, date_claim, department_in_charge, 												statut_id)
 
+RELATIONSHIP
+------------
+- each table that has docid is in relationship with Document from com.bar.gestiondesfichier.document.model.Document.java
+- each table that has statut_id is in relationship with docstatus
+- i want to add expiration date in com.bar.gestiondesfichier.document.model.Document.java with LocalDateTime data_type and nullabe=false
+- each table that has sectionid is in relationship with section_category table 
 
+DEFAULT DATA
+-------------
+- in the load of the app, initialize the country for the model: com.bar.gestiondesfichier.location.model.Country, find the world list of countries online.
+- for the load of the countries, check if the table is empty first to avoid duplicates
 
-
-
-
-
-
-
+	
 
 
 

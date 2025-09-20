@@ -1,34 +1,38 @@
 package com.bar.gestiondesfichier.controller;
 
+import com.bar.gestiondesfichier.common.util.ResponseUtil;
 import com.bar.gestiondesfichier.entity.Account;
 import com.bar.gestiondesfichier.entity.AccountCategory;
 import com.bar.gestiondesfichier.repository.AccountRepository;
 import com.bar.gestiondesfichier.repository.AccountCategoryRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/accounts")
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8081"})
-@Tag(name = "Account Management", description = "Account CRUD operations")
+@Tag(name = "Account Management", description = "Account CRUD operations with pagination")
 public class AccountController {
 
+    private static final Logger log = LoggerFactory.getLogger(AccountController.class);
     private final AccountRepository accountRepository;
     private final AccountCategoryRepository accountCategoryRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // Explicit constructor for dependency injection
     public AccountController(AccountRepository accountRepository, 
                            AccountCategoryRepository accountCategoryRepository,
                            PasswordEncoder passwordEncoder) {
@@ -38,40 +42,56 @@ public class AccountController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all accounts", description = "Retrieve all active accounts")
+    @Operation(summary = "Get all accounts", description = "Retrieve paginated list of active accounts with default 20 records per page")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Accounts retrieved successfully"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+        @ApiResponse(responseCode = "403", description = "Session expired")
     })
-    public ResponseEntity<List<AccountDTO>> getAllAccounts() {
+    public ResponseEntity<Map<String, Object>> getAllAccounts(
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") Integer page,
+            @Parameter(description = "Page size (max 100)") @RequestParam(defaultValue = "20") Integer size,
+            @Parameter(description = "Sort field") @RequestParam(defaultValue = "fullName") String sort,
+            @Parameter(description = "Sort direction") @RequestParam(defaultValue = "asc") String direction) {
         try {
-            List<Account> accounts = accountRepository.findByActiveTrue();
-            List<AccountDTO> accountDTOs = accounts.stream()
-                .map(this::convertToDTO)
-                .toList();
-            return ResponseEntity.ok(accountDTOs);
+            log.info("Retrieving accounts - page: {}, size: {}, sort: {} {}", page, size, sort, direction);
+            
+            Pageable pageable = ResponseUtil.createPageable(page, size, sort, direction);
+            Page<Account> accounts = accountRepository.findByActiveTrue(pageable);
+            
+            return ResponseUtil.successWithPagination(accounts);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid parameters for account retrieval: {}", e.getMessage());
+            return ResponseUtil.badRequest(e.getMessage());
         } catch (Exception e) {
             log.error("Error retrieving accounts", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            return ResponseUtil.badRequest("Failed to retrieve accounts: " + e.getMessage());
         }
     }
 
-    @GetMapping("/{id}")
+        @GetMapping("/{id}")
     @Operation(summary = "Get account by ID", description = "Retrieve a specific account by ID")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Account retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Account not found"),
-        @ApiResponse(responseCode = "500", description = "Internal server error")
+        @ApiResponse(responseCode = "400", description = "Account not found or invalid ID")
     })
-    public ResponseEntity<AccountDTO> getAccountById(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getAccountById(@PathVariable Long id) {
         try {
-            Optional<Account> account = accountRepository.findById(id);
-            return account.filter(Account::isActive)
-                         .map(a -> ResponseEntity.ok(convertToDTO(a)))
-                         .orElse(ResponseEntity.notFound().build());
+            if (id == null || id <= 0) {
+                return ResponseUtil.badRequest("Invalid account ID");
+            }
+            
+            log.info("Retrieving account by ID: {}", id);
+            Optional<Account> account = accountRepository.findByIdAndActiveTrue(id);
+            
+            if (account.isPresent()) {
+                return ResponseUtil.success(account.get(), "Account retrieved successfully");
+            } else {
+                return ResponseUtil.badRequest("Account not found with ID: " + id);
+            }
         } catch (Exception e) {
-            log.error("Error retrieving account with id: " + id, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            log.error("Error retrieving account with ID: {}", id, e);
+            return ResponseUtil.badRequest("Failed to retrieve account: " + e.getMessage());
         }
     }
 
