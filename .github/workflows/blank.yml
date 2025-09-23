@@ -30,8 +30,8 @@ jobs:
       - name: Upload built JAR as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mgrport.jar
-          path: target/igihecyubuntu.jar
+          name: gestiondesfichier.jar
+          path: target/gestiondesfichier.jar
 
       # Step 4 - Set up SSH agent
       - name: Set up SSH
@@ -43,7 +43,7 @@ jobs:
       - name: Copy JAR to remote server
         run: |
           scp -o StrictHostKeyChecking=no \
-              target/igihecyubuntu.jar \
+              target/gestiondesfichier.jar \
               root@108.181.190.111:/home/administrator/apps_backup/
 
       # Step 6 - Optionally run a deploy script remotely
@@ -51,4 +51,4 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no \
               root@108.181.190.111 \
-              "/bin/bash /home/administrator/apps_backup/shell_cmds/igihecyubuntu.sh"
+              "/bin/bash /home/administrator/apps_backup/shell_cmds/gestiondesfichier.sh"
